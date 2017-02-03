@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="../../favicon.ico">
+
+    <title>CargoID - Home</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="../static/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+    <link href="../../assets/css/ie10-viewport-bug-workaround.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="../static/jumbotron.css" rel="stylesheet">
+
+    <!-- Just for debugging purposes. Don't actually copy these 2 lines! -->
+    <!--[if lt IE 9]><script src="../../assets/js/ie8-responsive-file-warning.js"></script><![endif]-->
+    <script src="../../assets/js/ie-emulation-modes-warning.js"></script>
+
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+
+    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container">
+	<div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">CargoID</a>
+	</div>
+	<div class="collapse navbar-collapse">
+          <ul class="nav navbar-nav">
+            <li class="active"><a href="#">Home</a></li>
+            <li><a href="#about">About</a></li>
+            <li><a href="#contact">Contact</a></li>
+          </ul>
+	</div><!--/.nav-collapse -->
+      </div>
+    </div>
+
+    <br><br>
+
+
+    <div class="container">
+      <div class="starter-template">
+        <h1>CargoID: Automated Cargo Identification</h1>
+        <p class="lead">Most freight containers ship with missing data. We're here to help.</p>
+      </div>
+    </div><!-- /.container -->
+
+
+    <div class="container opening-desc">
+        <p>Many shipping containers imported into the United States are accompanied by only partial information detailing their contents. For instance, the shipping company may not be identified, the content weight could be uncertain, and various regulatory codes may be missing. Here is an example taken from the U.S. Census Bureau's publicly available trade data:</p>
+
+      <table class="table table-hover">
+	<tr><th>ID</th><th>Run Date</th><th>Vessel Name</th><th>Port of Unlading</th><th>Port of Lading</th><th>Content Description</th><th>Schedule B Code</th></tr>
+	<tr><td>201510072520ID</td><td>2015-10-07</td><td>MAERSK HARTFORD</td><td>New York/Newark Area, Newark, New Jersey</td><td>PIPAPAV, INDIA</td><td>INJECTION MOULDING MACHINE</td><td></td></tr>
+      </table>
+
+        <p>Note that the tariff code in this entry is missing, making it difficult to accurately assess taxes on the goods. With over $230 billion in annual imports, such innacurate or absent data represents an easy opportunity for lost revenue. This website addresses the problem by matching official text descriptions of different tax schedules provided by the U.S. government with user input to generate a list of the most relevant tariff codes for the shipment. Try it below.</p>
+
+    </div><!-- /.container -->
+
+    <br><br>
+    
+    <form action="/match_input" method="GET">
+      <div class="row form-group">
+	<div class="col-lg-4 col-lg-offset-4">
+          <div class="input-group">
+            <input name="word_desc" type="text" class="form-control" placeholder="Item description (e.g. alumnimum bicycle)"placeholder="Item description (e.g. alumnimum bicycle)"> 
+            <span class="input-group-btn">
+              <button class="btn btn-success" type="submit">Submit</button>
+            </span>
+          </div><!-- /input-group -->
+	</div><!-- /.col-lg-4 -->
+      </div><!-- /.row -->
+    </form>
+
+
+    <!-- <div class="container"> -->
+    <!--   <form action="/mathch_output" metho="GET"> -->
+    <!-- 	<div class="row"> -->
+    <!-- 	  <div class="col-lg-4 col-lg-offset-4"> -->
+    <!--         <div class="input-group"> -->
+    <!--           <input type="text" class="form-control" />  -->
+    <!--           <\!-- <span class="input-group-btn"> -\-> -->
+    <!--             <button class="btn btn-default" type="button">Go!</button> -->
+    <!--           <\!-- </span> -\-> -->
+    <!--         </div><\!-- /input-group -\-> -->
+    <!-- 	  </div><\!-- /.col-lg-4 -\-> -->
+    <!-- 	</div><\!-- /.row -\-> -->
+    <!--   </form> -->
+    <!--   <\!-- <form class="form-inline navbar-center"> -\-> -->
+    <!--   <form action="/match_input" method="GET"> -->
+    <!-- 	<div class="form-group row navbar-center"> -->
+    <!-- 	  <div class="col-xs-4"> -->
+    <!--         <input class="form-control" name="word_desc" placeholder="Item description (e.g. alumnimum bicycle)"placeholder="Item description (e.g. alumnimum bicycle)"> -->
+    <!-- 	  </div> -->
+    <!--       <button type="submit" class="btn btn-success">Submit</button> -->
+    <!-- 	</div> -->
+    <!--   </form> -->
+    <!-- <\!-- </div> -\-> -->
+
+
+    <div class="container">
+    </div> <!-- /container -->
+
+    <!--   <\!-- Example row of columns -\-> -->
+    <!--   <div class="row"> -->
+    <!--     <div class="col-md-4"> -->
+    <!--       <h2>Heading</h2> -->
+    <!--       <p>Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui. </p> -->
+    <!--       <p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p> -->
+    <!--     </div> -->
+    <!--     <div class="col-md-4"> -->
+    <!--       <h2>Heading</h2> -->
+    <!--       <p>Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui. </p> -->
+    <!--       <p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p> -->
+    <!--    </div> -->
+    <!--     <div class="col-md-4"> -->
+    <!--       <h2>Heading</h2> -->
+    <!--       <p>Donec sed odio dui. Cras justo odio, dapibus ac facilisis in, egestas eget quam. Vestibulum id ligula porta felis euismod semper. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus.</p> -->
+    <!--       <p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p> -->
+    <!--     </div> -->
+    <!--   </div> -->
+    <!--   <hr> -->
+
+    <footer class="footer">
+      <div class="container">
+        <p class="text-muted">Alexander Holiday | <a href="https://github.com/glinka">GitHub</a></p>
+      </div>
+    </footer>
+
+
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <script>window.jQuery || document.write('<script src="../../assets/js/vendor/jquery.min.js"><\/script>')</script>
+    <script src="../../dist/js/bootstrap.min.js"></script>
+    <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+    <script src="../../assets/js/ie10-viewport-bug-workaround.js"></script>
+  </body>
+</html>
