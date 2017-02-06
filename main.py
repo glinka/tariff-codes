@@ -1,4 +1,3 @@
-
 import urllib
 import os
 import zipfile
@@ -132,27 +131,48 @@ def match_codes():
 
     official_codes, official_descriptions = get_official_data()
 
-    # model = HashingEmbedder(analyzer='char', ngram_range=(2,3)) # word2vecEmbedder() 
-
-    models = [HashingEmbedder(), HashingEmbedder(analyzer='char', ngram_range=(2,3)), HashingEmbedder(analyzer='char', ngram_range=(3,4)), HashingEmbedder(analyzer='char', ngram_range=(2,4)), word2vecEmbedder()]
-    model_descs = ['Plain hashing embedder', 'Hashing char (2,3)', 'Hashing char (3,4)', 'Hashing char (2,4)', 'word2vec']
+    # models = [HashingEmbedder(), HashingEmbedder(analyzer='char', ngram_range=(2,3)), HashingEmbedder(analyzer='char', ngram_range=(3,4)), HashingEmbedder(analyzer='char', ngram_range=(2,4)), word2vecEmbedder()]
+    # model_descs = ['Plain hashing embedder', 'Hashing char (2,3)', 'Hashing char (3,4)', 'Hashing char (2,4)', 'word2vec']
     
+    models = [word2vecEmbedder()] #[HashingEmbedder(analyzer='char', ngram_range=(2,3))]
+    model_descs = ['w2v']
+
     for i, model in enumerate(models):
         t1 = time()
-        model.embed(official_descriptions, 'official')
-        model.embed(data_descriptions, 'data')
+        model.embed_data(data_descriptions)
+
+        model.get_best_columns_and_scores()
 
         k = 5
         optimally_matching_columns, matching_scores = model.get_max_k_columns_and_scores(k)
+        print optimally_matching_columns.shape
+        code_dict = model.get_coarse_index_code_dict()
+        pred_codes = np.array([[code_dict[j] for j in optimally_matching_columns[:,m]] for m in range(k)]).T
+        
 
-
-        optimally_matching_codes = official_codes[optimally_matching_columns]
-        matching_errors = np.abs(data_codes.reshape((-1,1)) - optimally_matching_codes)
+        top_data_codes = (data_codes/np.power(10,8)).reshape((-1,1))
+        matching_errors = np.abs(top_data_codes - pred_codes)
 
         print '------------------------------'
         print model_descs[i], 'took', time() - t1, 'seconds. Performance summary:'
-        print 'Percent with first level correct:', np.sum(matching_errors[:,0] < np.power(10, 9))
-        print 'Percent with second level correct:', np.sum(matching_errors[:,0] < np.power(10, 7))
+        print 'Percent with first level correct:', np.sum(matching_errors[:,0] == 0)
+
+
+        confusion_matrix = model.get_confusion_matrix(top_data_codes, pred_codes)
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ncategories = confusion_matrix.shape[0]
+        ax.imshow(confusion_matrix, cmap='Blues')
+        ax.set_xticks(range(ncategories))
+        labels = np.arange(ncategories)
+        ax.set_xticklabels(labels, rotation=45)
+        ax.set_yticks(range(ncategories))
+        ax.set_yticklabels(labels, rotation=45)
+        ax.set_xticks(())
+        ax.set_yticks(())
+        ax.set_xlabel('True label', fontsize=48)
+        ax.set_ylabel('Predicted label', fontsize=48)
+    plt.show()
     
 
 def parse_csv():
