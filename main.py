@@ -6,6 +6,7 @@ import numpy as np
 from sklearn import linear_model
 from sklearn.cluster import KMeans
 from sklearn.feature_extraction.text import TfidfVectorizer, TfidfTransformer, CountVectorizer, HashingVectorizer
+from sklearn.metrics import confusion_matrix
 from scipy.stats import ks_2samp
 from scipy import io, sparse
 from matplotlib import colors, colorbar, cm, pyplot as plt, gridspec as gs, tri
@@ -22,8 +23,9 @@ import csv
 import re
 from time import time
 from itertools import compress
-# from embedders import HashingEmbedder
+
 from models import HashingEmbedder, word2vecEmbedder
+from classifiers import KNNClassifier
 
 def parse_codes_descriptions():
     """Parses codes and corresponding words from tariff code text doc"""
@@ -123,57 +125,133 @@ def get_max_k_columns_and_scores(index_scores, k=5):
     
 
 
+def plot_confusion_matrix(cm):
+    """
+    This function prints and plots the confusion matrix.
+    Normalization can be applied by setting `normalize=True`.
+    """
+    fs = 48
+    cmap = 'Blues'
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    pts = ax.imshow(cm, interpolation='nearest', cmap=cmap)
+    ax.set_title('Confusion matrix', fontsize=1.5*fs)
+    cb = fig.colorbar(pts)
+    cb.set_label(label='\nNumber of entries', fontsize=fs)
+    cb.ax.tick_params(labelsize=fs)
+    ax.set_xticks(())
+    ax.set_yticks(())
+    ax.set_xlabel('Predicted label', fontsize=fs)
+    ax.set_ylabel('True label', fontsize=fs)
+    xlims = ax.get_xlim()
+    ylims = ax.get_ylim()
+    ax.plot(xlims[::-1], ylims, c='k', lw=1)
+    ax.grid(b=True)
+    plt.tight_layout()
+    plt.show()
+    
+
+def plot_roc_curve(epss, accuracies, word_counts):
+    fs = 48
+    lw = 3
+    acc_color = "#174b9e"
+    wc_color = "#931414"
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax_cc = ax.twinx()
+    ax.set_axis_bgcolor('w')
+
+    ax.plot(1-epss, accuracies, c=acc_color, lw=lw)
+    ax_cc.plot(1-epss, word_counts, c=wc_color, lw=lw)
+
+    ax.set_xlabel(r'$1-\delta$', fontsize=fs)
+    ax.set_ylabel('\nAccuracy', fontsize=fs, color=acc_color)
+    ax_cc.set_ylabel('\nAverage Number Codes', fontsize=fs, color=wc_color)
+
+    ax.tick_params(labelsize=fs)
+    ax_cc.tick_params(axis='y', labelsize=fs)
+
+    ax.locator_params(nbins=3)
+    ax_cc.locator_params(nbins=3)
+
+    fig.subplots_adjust(right=0.88, left=0.12)
+
+# fig = plt.figure(); ax = fig.add_subplot(111); ax.bar([0.8, 1.2], [0.31, 0.42], width=0.2); ax.locator_params(axis='y', nbins=3); ax.set_xlim((0.5, 1.7)); ax.set_xticks((0.9, 1.3)); ax.set_xticklabels(['Hard matching', 'Soft matching']); ax.set_axis_bgcolor('w'); ax.set_ylabel('Accuracy'); plt.show()
+
+
 def match_codes():
     """Matching full dataset in parallel with customizable embedding method"""
+
+
+    # plot_confusion_matrix(np.random.uniform(size=(100,100)))
+    # exit()
+
     working_directory = './data/'
 
-    data_codes, data_descriptions = get_data_to_match('medium')
+    data_codes, data_descriptions = get_data_to_match('slim')
 
     official_codes, official_descriptions = get_official_data()
 
-    # models = [HashingEmbedder(), HashingEmbedder(analyzer='char', ngram_range=(2,3)), HashingEmbedder(analyzer='char', ngram_range=(3,4)), HashingEmbedder(analyzer='char', ngram_range=(2,4)), word2vecEmbedder()]
-    # model_descs = ['Plain hashing embedder', 'Hashing char (2,3)', 'Hashing char (3,4)', 'Hashing char (2,4)', 'word2vec']
-    
-    models = [word2vecEmbedder()] #[HashingEmbedder(analyzer='char', ngram_range=(2,3))]
-    model_descs = ['w2v']
+    level = 1
+    model = word2vecEmbedder() # HashingEmbedder(level=level, analyzer='char', ngram_range=(4,5), norm='l2') # word2vecEmbedder() # HashingEmbedder() #  [HashingEmbedder(level=level, analyzer='char', ngram_range=(3,5), norm='l2')] #[HashingEmbedder(level=level, analyzer='char', ngram_range=(2,3))]
+    model.embed_data(data_descriptions)
 
-    for i, model in enumerate(models):
+    print 'loaded and embedded data'
+
+    test_nNN(model, data_descriptions, data_codes)
+
+
+def test_nNN(model, data_descriptions, data_codes, nNNmin=2, nNNmax = 10):
+    for nNN in xrange(nNNmin,nNNmax+1):
+        classifier = KNNClassifier(n_neighbors=nNN)
+
         t1 = time()
-        model.embed_data(data_descriptions)
-
-        model.get_best_columns_and_scores()
-
-        k = 5
-        optimally_matching_columns, matching_scores = model.get_max_k_columns_and_scores(k)
-        print optimally_matching_columns.shape
-        code_dict = model.get_coarse_index_code_dict()
-        pred_codes = np.array([[code_dict[j] for j in optimally_matching_columns[:,m]] for m in range(k)]).T
-        
-
-        top_data_codes = (data_codes/np.power(10,8)).reshape((-1,1))
-        matching_errors = np.abs(top_data_codes - pred_codes)
+        classifier.fit(model._official_embeddings, model.coarsen_codes(model._official_codes))
+        pred_codes = classifier.predict_with_edit_dist(model._data_embeddings, data_descriptions, model._official_descriptions)
+        true_coarse_codes = model.coarsen_codes(data_codes) # .reshape((-1,1))
+        errors = pred_codes - true_coarse_codes
 
         print '------------------------------'
-        print model_descs[i], 'took', time() - t1, 'seconds. Performance summary:'
-        print 'Percent with first level correct:', np.sum(matching_errors[:,0] == 0)
+        print 'nNN:', nNN
+        print 'Correctly predicted', 1.0*np.sum(errors == 0)/errors.shape[0], 'percent of top level codes w/ edit dist kNN'
+        t1 = time()
+        pred_codes = classifier.predict(model._data_embeddings)
+        errors = pred_codes - true_coarse_codes
+        print 'Correctly predicted', 1.0*np.sum(errors == 0)/errors.shape[0], 'percent of top level code w/ euclidean kNN'
+        print 'Took', time() - t1, 'seconds'
+        print '------------------------------'
 
+    # ntests = 1
+    # min_threshold = 0.0
+    # max_threshold = 1.0
+    # thresholds = np.linspace(min_threshold, max_threshold, ntests)
+    # correct_classifications = np.empty(ntests)
+    # avg_words_returned = np.empty(ntests)
+    # for i in xrange(ntests):
+    #     t1 = time()
+    #     # optimally_matching_columns = model.get_max_k_columns_and_scores()[0]
+    #     # optimally_matching_columns =  model.get_best_columns(epsilon=thresholds[i])
+    #     # predicted_coarse_codes = model.get_matching_coarse_codes(optimally_matching_columns)
+    #     # predicted_coarse_codes = model.classify_knn(n_neighbors=10)
+    #     # print predicted_coarse_codes
+    #     true_coarse_codes = model.coarsen_codes(data_codes) # .reshape((-1,1))
 
-        confusion_matrix = model.get_confusion_matrix(top_data_codes, pred_codes)
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        ncategories = confusion_matrix.shape[0]
-        ax.imshow(confusion_matrix, cmap='Blues')
-        ax.set_xticks(range(ncategories))
-        labels = np.arange(ncategories)
-        ax.set_xticklabels(labels, rotation=45)
-        ax.set_yticks(range(ncategories))
-        ax.set_yticklabels(labels, rotation=45)
-        ax.set_xticks(())
-        ax.set_yticks(())
-        ax.set_xlabel('True label', fontsize=48)
-        ax.set_ylabel('Predicted label', fontsize=48)
-    plt.show()
-    
+    #     predicted_coarse_codes = model.edit_dist_knn_classify(data_descriptions)
+
+    #     errors = model.assess_matching_accuracy(true_coarse_codes, predicted_coarse_codes)
+    #     print 'Matched', np.sum(errors == 0), 'codes'
+    #     print 'Took', time() - t1, 'seconds'
+
+        # correct_classifications[i] = np.sum(errors == 0)
+        # avg_words_returned[i] = np.average([len(predictions) for predictions in optimally_matching_columns])
+        # print [len(predictions) for predictions in optimally_matching_columns]
+
+    # plot_roc_curve(thresholds, correct_classifications/len(data_codes), avg_words_returned)
+    # plt.show()
+
+        # plot_confusion_matrix(confusion_matrix(true_coarse_codes, np.array([pred[0] for pred in predicted_coarse_codes])))
+
 
 def parse_csv():
     """Parses huge csv of exported Enigma dataset"""
