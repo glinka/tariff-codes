@@ -25,7 +25,19 @@ from time import time
 from itertools import compress
 
 from models import HashingEmbedder, word2vecEmbedder
-from classifiers import KNNClassifier
+from classifiers import KNNClassifier, KNNCombinedClassifier
+from utils import coarsen_codes, get_section_codes
+
+SECTION_DICT = {}
+section_stops = [6, 15, 16, 25, 28, 39, 41, 44, 47, 50, 64, 68, 71, 72, 84, 86, 90, 93, 94, 97, 98, 100]
+section = 1
+for i in xrange(1,100):
+    if section_stops[section-1] == i:
+        section += 1
+    SECTION_DICT[i] = section
+
+
+section_labels = ['LIVE ANIMALS; ANIMAL PRODUCTS', 'VEGETABLE PRODUCTS', 'ANIMAL OR VEGETABLE FATS AND OILS', 'PREPARED FOODSTUFFS; BEVERAGES, SPIRITS AND VINEGAR; TOBACCO AND MANUFACTURED TOBACCO SUBSTITUTES', 'MINERAL PRODUCTS', 'PRODUCTS OF THE CHEMICAL OR ALLIED INDUSTRIES', 'PLASTICS; RUBBER', 'RAW HIDES AND SKINS, LEATHER, AND FURSKINS', 'WOOD; WOOD CHARCOAL; CORK', 'PULP OF WOOD OR OF OTHER FIBROUS CELLULOSIC MATERIAL', 'TEXTILES AND TEXTILE ARTICLES', 'FOOTWEAR, HEADGEAR, UMBRELLAS, SUN UMBRELLAS, WALKING-STICKS, SEAT-STICKS, WHIPS, RIDING-CROPS', 'ARTICLES OF STONE, PLASTER, CEMENT, ASBESTOS, MICA OR SIMILAR MATERIALS', 'NATURAL OR CULTURED PEARLS, PRECIOUS OR SEMIPRECIOUS STONES, PRECIOUS METALS', 'BASE METALS', 'MACHINERY AND MECHANICAL APPLIANCES; ELECTRICAL EQUIPMENT', 'VEHICLES, AIRCRAFT, VESSELS AND ASSOCIATED TRANSPORT EQUIPMENT', 'OPTICAL, PHOTOGRAPHIC, CINEMATOGRAPHIC, MEASURING, CHECKING, PRECISION, MEDICAL OR SURGICAL INSTRUMENTS AND APPARATUS', 'ARMS AND AMMUNITION', 'MISCELLANEOUS MANUFACTURED ARTICLES', "WORKS OF ART, COLLECTORS' PIECES AND ANTIQUES",'SPECIAL CLASSIFICATION PROVISIONS']
 
 def parse_codes_descriptions():
     """Parses codes and corresponding words from tariff code text doc"""
@@ -125,11 +137,26 @@ def get_max_k_columns_and_scores(index_scores, k=5):
     
 
 
-def plot_confusion_matrix(cm):
+def plot_confusion_matrix(true_codes, pred_codes):
     """
     This function prints and plots the confusion matrix.
     Normalization can be applied by setting `normalize=True`.
     """
+    labels = np.sort(list(set(true_codes).union(set(pred_codes))))
+    nlabels = len(labels)
+    label_map = {labels[i]:i for i in range(nlabels)}
+    
+    cm = np.zeros((nlabels, nlabels))
+    for i in xrange(nlabels):
+        tlabel = labels[i]
+        tindex = label_map[tlabel]
+        mask = true_codes == tlabel
+        codes = pred_codes[mask]
+        for code in codes:
+            pindex = label_map[code]
+            cm[tindex,pindex] += 1
+            
+
     fs = 48
     cmap = 'Blues'
     fig = plt.figure()
@@ -147,6 +174,10 @@ def plot_confusion_matrix(cm):
     ylims = ax.get_ylim()
     ax.plot(xlims[::-1], ylims, c='k', lw=1)
     ax.grid(b=True)
+    ax.set_xticks(range(len(labels)))
+    ax.set_xticklabels(labels)
+    ax.set_yticks(range(len(labels)))
+    ax.set_yticklabels(labels)
     plt.tight_layout()
     plt.show()
     
@@ -177,29 +208,106 @@ def plot_roc_curve(epss, accuracies, word_counts):
 
     fig.subplots_adjust(right=0.88, left=0.12)
 
-# fig = plt.figure(); ax = fig.add_subplot(111); ax.bar([0.8, 1.2], [0.31, 0.42], width=0.2); ax.locator_params(axis='y', nbins=3); ax.set_xlim((0.5, 1.7)); ax.set_xticks((0.9, 1.3)); ax.set_xticklabels(['Hard matching', 'Soft matching']); ax.set_axis_bgcolor('w'); ax.set_ylabel('Accuracy'); plt.show()
+# fig = plt.figure(); ax = fig.add_subplot(111); ax.bar([0.8, 1.2], [0.398657046863, 0.275397642306], width=0.2); ax.locator_params(axis='y', nbins=3); ax.set_xlim((0.5, 1.7)); ax.set_xticks((0.9, 1.3)); ax.set_xticklabels(['Hard matching', 'Soft matching']); ax.set_axis_bgcolor('w'); ax.set_ylabel('Accuracy'); plt.show()
+
+
+def match_combined_codes():
+    """Matching full dataset in parallel with customizable embedding method"""
+
+    # 0.424 w/o weighting
+
+    working_directory = './data/'
+
+    data_codes, data_descriptions = get_data_to_match('medium')
+
+    official_codes, official_descriptions = get_official_data()
+
+    level = 1
+    model_hash = HashingEmbedder(level=level, analyzer='char_wb', ngram_range=(4,5), norm='l2')
+    model_hash.embed_data(data_descriptions)
+    model_w2v = word2vecEmbedder()
+    model_w2v.embed_data(data_descriptions)
+
+    print 'loaded and embedded data'
+
+    use_section = False
+    official_code_labels = None
+    true_data_codes = None
+    if use_section:
+        official_code_labels = get_section_codes(model.official_codes)
+        true_data_codes = get_section_codes(data_codes)
+    else:
+        official_code_labels = coarsen_codes(model_hash.official_codes)
+        true_data_codes = coarsen_codes(data_codes)
+
+    nNN = 4
+    classifier = KNNCombinedClassifier(n_neighbors=nNN)
+    classifier.fit1(model_hash.official_embeddings, official_code_labels)
+    classifier.fit2(model_w2v.official_embeddings, official_code_labels)
+    # for alpha in np.linspace(0, 1, 4):
+        # pred_codes = classifier.predict_combined(model_hash.data_embeddings, model_w2v.data_embeddings, alpha=alpha)
+        # errors = pred_codes - true_data_codes
+        # print 'Correctly predicted', 1.0*np.sum(errors == 0)/errors.shape[0], 'with alpha of', alpha
+
+    alpha = 0.8
+    pred_codes = classifier.predict_combined(model_hash.data_embeddings, model_w2v.data_embeddings, alpha=alpha)
+    errors = pred_codes - true_data_codes
+    print 'Correctly predicted', 1.0*np.sum(errors == 0)/errors.shape[0], 'with alpha of', alpha
 
 
 def match_codes():
     """Matching full dataset in parallel with customizable embedding method"""
 
-
-    # plot_confusion_matrix(np.random.uniform(size=(100,100)))
-    # exit()
+    # 0.398657046863 hard, 0.275397642306 soft
 
     working_directory = './data/'
 
-    data_codes, data_descriptions = get_data_to_match('slim')
+    data_codes, data_descriptions = get_data_to_match('medium')
 
     official_codes, official_descriptions = get_official_data()
 
     level = 1
-    model = word2vecEmbedder() # HashingEmbedder(level=level, analyzer='char', ngram_range=(4,5), norm='l2') # word2vecEmbedder() # HashingEmbedder() #  [HashingEmbedder(level=level, analyzer='char', ngram_range=(3,5), norm='l2')] #[HashingEmbedder(level=level, analyzer='char', ngram_range=(2,3))]
+    model = HashingEmbedder(level=level, analyzer='char_wb', ngram_range=(4,5), norm='l2') # word2vecEmbedder() # word2vecEmbedder() # HashingEmbedder() #  [HashingEmbedder(level=level, analyzer='char', ngram_range=(3,5), norm='l2')] #[HashingEmbedder(level=level, analyzer='char', ngram_range=(2,3))]
     model.embed_data(data_descriptions)
 
     print 'loaded and embedded data'
 
-    test_nNN(model, data_descriptions, data_codes)
+    # test_nNN(model, data_descriptions, data_codes)
+
+    official_code_labels = None
+    true_data_codes = None
+    use_section = False
+    if use_section:
+        official_code_labels = get_section_codes(model.official_codes)
+        true_data_codes = get_section_codes(data_codes)
+    else:
+        official_code_labels = coarsen_codes(model.official_codes)
+        true_data_codes = coarsen_codes(data_codes)
+
+    nNN = 4
+    classifier = KNNClassifier(n_neighbors=nNN)
+    classifier.fit(model.official_embeddings, official_code_labels)
+    pred_codes = classifier.predict(model.data_embeddings, pbar=True) # classifier.predict_with_edit_dist(model.data_embeddings, data_descriptions, model.official_descriptions)
+
+
+
+    
+
+    errors = pred_codes - true_data_codes
+    print 'Correctly predicted', 1.0*np.sum(errors == 0)/errors.shape[0], 'percent of top level codes'
+    # plot_confusion_matrix(true_data_codes, pred_codes)
+
+
+    model = word2vecEmbedder()
+    model.embed_data(data_descriptions)
+    classifier = KNNClassifier(n_neighbors=nNN)
+    classifier.fit(model.official_embeddings, official_code_labels)
+    pred_codes = classifier.predict(model.data_embeddings) # classifier.predict_with_edit_dist(model.data_embeddings, data_descriptions, model.official_descriptions)
+    # errors2 = pred_codes - true_data_codes
+    # print np.sum(errors2[errors != 0] == 0)
+    # mask = np.logical_and(errors2 == 0, errors != 0)
+    # print [data_descriptions[i] for i in range(1000) if mask[i] == True]
+    
 
 
 def test_nNN(model, data_descriptions, data_codes, nNNmin=2, nNNmax = 10):
@@ -207,17 +315,24 @@ def test_nNN(model, data_descriptions, data_codes, nNNmin=2, nNNmax = 10):
         classifier = KNNClassifier(n_neighbors=nNN)
 
         t1 = time()
-        classifier.fit(model._official_embeddings, model.coarsen_codes(model._official_codes))
-        pred_codes = classifier.predict_with_edit_dist(model._data_embeddings, data_descriptions, model._official_descriptions)
-        true_coarse_codes = model.coarsen_codes(data_codes) # .reshape((-1,1))
-        errors = pred_codes - true_coarse_codes
+        classifier.fit(model.official_embeddings, get_section_codes(model.official_codes))
+        # classifier.fit(model.official_embeddings, coarsen_codes(model.official_codes))
+        pred_section_codes = classifier.predict_with_edit_dist(model.data_embeddings, data_descriptions, model.official_descriptions)
+        # true_coarse_codes = coarsen_codes(data_codes) # .reshape((-1,1))
+        # errors = pred_codes - true_coarse_codes
+        true_section_codes = get_section_codes(data_codes) # .reshape((-1,1))
+        errors = pred_section_codes - true_section_codes
 
         print '------------------------------'
         print 'nNN:', nNN
         print 'Correctly predicted', 1.0*np.sum(errors == 0)/errors.shape[0], 'percent of top level codes w/ edit dist kNN'
+        print 'Took', time() - t1, 'seconds'
+        
         t1 = time()
-        pred_codes = classifier.predict(model._data_embeddings)
-        errors = pred_codes - true_coarse_codes
+        # pred_codes = classifier.predict(model.data_embeddings)
+        # errors = pred_codes - true_coarse_codes
+        pred_section_codes = classifier.predict(model.data_embeddings)
+        errors = pred_section_codes - true_section_codes
         print 'Correctly predicted', 1.0*np.sum(errors == 0)/errors.shape[0], 'percent of top level code w/ euclidean kNN'
         print 'Took', time() - t1, 'seconds'
         print '------------------------------'
@@ -539,3 +654,4 @@ if __name__=='__main__':
     # analyze_data()
     # parse_csv()
     match_codes()
+    # match_combined_codes()
