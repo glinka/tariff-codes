@@ -42,13 +42,13 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand" href="#">CargoID</a>
+          <a class="navbar-brand" href="/index">CargoID</a>
 	</div>
 	<div class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
-            <li class="active"><a href="#">Home</a></li>
-            <li><a href="#about">About</a></li>
-            <li><a href="#contact">Contact</a></li>
+            <li class="active"><a href="/index">Home</a></li>
+            <li><a href="/about">About</a></li>
+            <li><a href="/contact">Contact</a></li>
           </ul>
 	</div><!--/.nav-collapse -->
       </div>
@@ -59,26 +59,14 @@
 
     <div class="container">
       <div class="starter-template">
-        <h1>CargoID: Automated Cargo Identification</h1>
-        <p class="lead">Most freight containers ship with missing data. We're here to help.</p>
+        <h1>Cargo Codes</h1>
+        <p class="lead">Automated assessment of tariffs through natural language processing.</p>
+	<br><br>
+        <p>Enter a description of your cargo and we'll help you find an appropriate tariff code:
       </div>
     </div><!-- /.container -->
 
 
-    <div class="container opening-desc">
-        <p>Many shipping containers imported into the United States are accompanied by only partial information detailing their contents. For instance, the shipping company may not be identified, the content weight could be uncertain, and various regulatory codes may be missing. Here is an example taken from the U.S. Census Bureau's publicly available trade data:</p>
-
-      <table class="table table-hover">
-	<tr><th>ID</th><th>Run Date</th><th>Vessel Name</th><th>Port of Unlading</th><th>Port of Lading</th><th>Content Description</th><th>Schedule B Code</th></tr>
-	<tr><td>201510072520</td><td>2015-10-07</td><td>MAERSK HARTFORD</td><td>New York/Newark Area, Newark, New Jersey</td><td>PIPAPAV, INDIA</td><td>INJECTION MOULDING MACHINE</td><td></td></tr>
-      </table>
-
-        <p>Note that the tariff code in this entry is missing, making it difficult to accurately assess taxes on the goods. With over $230 billion in annual imports, such innacurate or absent data represents an easy opportunity for lost revenue. This website addresses the problem by matching official text descriptions of different tax schedules provided by the U.S. government with user input to generate a list of the most relevant tariff codes for the shipment. Try it below.</p>
-
-    </div><!-- /.container -->
-
-    <br><br>
-    
     <form action="/match_input" method="GET">
       <div class="row form-group">
 	<div class="col-lg-4 col-lg-offset-4">
@@ -143,7 +131,7 @@
 
     <footer class="footer">
       <div class="container">
-        <p class="text-muted">Alexander Holiday | <a href="https://github.com/glinka">GitHub</a></p>
+        <p class="text-muted">Alexander Holiday | <a href="https://github.com/glinka/tariff-codes">GitHub</a></p>
       </div>
     </footer>
 

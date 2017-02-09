@@ -41,7 +41,7 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand" href="#">CargoID</a>
+          <a class="navbar-brand" href="/index">CargoID</a>
 	</div>
 	<div class="collapse navbar-collapse">
           <ul class="nav navbar-nav">
@@ -75,36 +75,16 @@
       <table class="table table-hover">
 	<tr><th>Code</th><th>Description</th></tr>
 	{% for code in codes %}
-	<tr><td>{{ code['id'] }}</td><td>{{ code['desc']}}</td></tr>
+	<tr><td>{{ code['id'] }}</td><td>"Coming Soon"</td></tr>
 	{% endfor %}
       </table>
 
 
-      {#
-      <!-- <div class="text-center"> -->
-      <!-- 	  <img src="{{ url_for("simple_png") }}" class="rounded" alt="Image Placeholder" width="500em"> -->
-      <!-- 	  <\!-- <img src="{{ fig }}" class="rounded" alt="Image Placeholder" width="500em"> -\-> -->
-      <!-- 	<\!-- <form class="form-inline navbar-center"> -\-> -->
-      <!-- </div> -->
-      #}
-
-
-
-    </div><!-- /.container -->
-
-    <!-- <div class="container"> -->
-    <!--   <div class="starter-template"> -->
-    <!-- 	<h3>Another Result:</h3> -->
-    <!-- 	<p class="lead">Now we've taken the input and called a function from your package.<br>The result is {{the_result}}</p> -->
-    <!--   </div> -->
-
-
-      <script src="https://code.jquery.com/jquery-1.10.2.min.js"></script>
-      <script src="static/js/bootstrap.min.js"></script>
-
-
-    </div><!-- /.container -->
-
+    <footer class="footer">
+      <div class="container">
+        <p class="text-muted">Alexander Holiday | <a href="https://github.com/glinka/tariff-codes">GitHub</a></p>
+      </div>
+    </footer>
 
     <!-- Bootstrap core JavaScript
 	 ================================================== -->
