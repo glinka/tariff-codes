@@ -73,12 +73,12 @@
       </form>
 
       <table class="table table-hover">
-	<tr><th>Code</th><th>Description</th></tr>
+	<tr><th>Code</th><th>Description</th><th>Accuracy score (0 to 1)</th></tr>
 	{% for code in codes %}
-	<tr><td>{{ code['id'] }}</td><td>"Coming Soon"</td></tr>
+	<tr><td>{{ code['id'] }}</td><td>{{ code['desc'] }}</td><td>{{ code['weight'] }}</td></tr>
 	{% endfor %}
       </table>
-
+    </div>
 
     <footer class="footer">
       <div class="container">

@@ -24,7 +24,7 @@ import re
 from time import time
 from itertools import compress
 
-from models import HashingEmbedder, word2vecEmbedder
+from models import HashingEmbedder, word2vecEmbedder, TfidfEmbedder
 from classifiers import KNNClassifier, KNNCombinedClassifier
 from utils import coarsen_codes, get_section_codes
 
@@ -35,6 +35,26 @@ for i in xrange(1,100):
     if section_stops[section-1] == i:
         section += 1
     SECTION_DICT[i] = section
+
+
+def get_chapter_names(chapter):
+    cnames = {}
+    with open('./chapters.html') as f:
+        chapter = 0
+        while chapter < 98:
+            line = f.readline()
+            if '<strong>Chapter' in line:
+                # print line
+                chapter = int(line[line.find('<strong>Chapter')+16:line.find('<strong>Chapter')+18])
+                f.readline()
+                f.readline()
+                line = f.readline()
+                description = str(line[:line.find('<')].strip().replace('&amp;', 'AND'))
+                description = description[0] + description[1:].lower()
+                cnames[chapter] = description
+    pickle.dump(cnames, open('./data/chapter-names' + '.pkl', 'w'))
+    print cnames
+
 
 
 section_labels = ['LIVE ANIMALS; ANIMAL PRODUCTS', 'VEGETABLE PRODUCTS', 'ANIMAL OR VEGETABLE FATS AND OILS', 'PREPARED FOODSTUFFS; BEVERAGES, SPIRITS AND VINEGAR; TOBACCO AND MANUFACTURED TOBACCO SUBSTITUTES', 'MINERAL PRODUCTS', 'PRODUCTS OF THE CHEMICAL OR ALLIED INDUSTRIES', 'PLASTICS; RUBBER', 'RAW HIDES AND SKINS, LEATHER, AND FURSKINS', 'WOOD; WOOD CHARCOAL; CORK', 'PULP OF WOOD OR OF OTHER FIBROUS CELLULOSIC MATERIAL', 'TEXTILES AND TEXTILE ARTICLES', 'FOOTWEAR, HEADGEAR, UMBRELLAS, SUN UMBRELLAS, WALKING-STICKS, SEAT-STICKS, WHIPS, RIDING-CROPS', 'ARTICLES OF STONE, PLASTER, CEMENT, ASBESTOS, MICA OR SIMILAR MATERIALS', 'NATURAL OR CULTURED PEARLS, PRECIOUS OR SEMIPRECIOUS STONES, PRECIOUS METALS', 'BASE METALS', 'MACHINERY AND MECHANICAL APPLIANCES; ELECTRICAL EQUIPMENT', 'VEHICLES, AIRCRAFT, VESSELS AND ASSOCIATED TRANSPORT EQUIPMENT', 'OPTICAL, PHOTOGRAPHIC, CINEMATOGRAPHIC, MEASURING, CHECKING, PRECISION, MEDICAL OR SURGICAL INSTRUMENTS AND APPARATUS', 'ARMS AND AMMUNITION', 'MISCELLANEOUS MANUFACTURED ARTICLES', "WORKS OF ART, COLLECTORS' PIECES AND ANTIQUES",'SPECIAL CLASSIFICATION PROVISIONS']
@@ -68,6 +88,10 @@ def get_data_to_match(id):
     elif id is 'medium':
         data_codes = pickle.load(open('./data/data-codes-labeled.pkl', 'r'))
         data_descriptions = pickle.load(open('./data/data-descriptions-labeled.pkl', 'r'))
+
+    elif id is '5':
+        data_codes = pickle.load(open('./data/train/codes5.pkl', 'r'))
+        data_descriptions = pickle.load(open('./data/train/descriptions5.pkl', 'r'))
 
     return [data_codes, data_descriptions]
 
@@ -218,12 +242,12 @@ def match_combined_codes():
 
     working_directory = './data/'
 
-    data_codes, data_descriptions = get_data_to_match('medium')
+    data_codes, data_descriptions = get_data_to_match('5')
 
     official_codes, official_descriptions = get_official_data()
 
     level = 1
-    model_hash = HashingEmbedder(level=level, analyzer='char_wb', ngram_range=(4,5), norm='l2')
+    model_hash = HashingEmbedder(level=level, analyzer='char_wb', ngram_range=(4,5), norm='l2')# TfidfEmbedder(level=level, analyzer='char', ngram_range=(4,5), norm='l2')
     model_hash.embed_data(data_descriptions)
     model_w2v = word2vecEmbedder()
     model_w2v.embed_data(data_descriptions)
@@ -244,15 +268,18 @@ def match_combined_codes():
     classifier = KNNCombinedClassifier(n_neighbors=nNN)
     classifier.fit1(model_hash.official_embeddings, official_code_labels)
     classifier.fit2(model_w2v.official_embeddings, official_code_labels)
-    # for alpha in np.linspace(0, 1, 4):
-        # pred_codes = classifier.predict_combined(model_hash.data_embeddings, model_w2v.data_embeddings, alpha=alpha)
-        # errors = pred_codes - true_data_codes
-        # print 'Correctly predicted', 1.0*np.sum(errors == 0)/errors.shape[0], 'with alpha of', alpha
+    # for alpha in np.linspace(0, 0.8, 10):
+    #     pred_codes, pred_weights, pred_full_codes = classifier.predict_combined(model_hash.data_embeddings, model_w2v.data_embeddings, alpha=alpha)
+    #     errors = pred_codes[:,0] - true_data_codes
+    #     print 'Correctly predicted', 1.0*np.sum(errors == 0)/errors.shape[0], 'with alpha of', alpha
 
-    alpha = 0.8
-    pred_codes = classifier.predict_combined(model_hash.data_embeddings, model_w2v.data_embeddings, alpha=alpha)
-    errors = pred_codes - true_data_codes
-    print 'Correctly predicted', 1.0*np.sum(errors == 0)/errors.shape[0], 'with alpha of', alpha
+    alpha = 0.1
+    pred_codes, pred_weights, pred_full_codes = classifier.predict_combined(model_hash.data_embeddings, model_w2v.data_embeddings, alpha=alpha, pbar=True)
+    mask =  np.sum(pred_codes - true_data_codes.reshape((-1,1)) == 0)
+    print 1.0*mask/pred_codes.shape[0]
+    # errors = np.sum(pred_codes[:,0] - true_data_codes.reshape((-1,1)) == 0)
+    # print 'Correctly predicted', 1.0*errors/pred_codes.shape[0], 'with alpha of', alpha
+    plot_confusion_matrix(pred_codes[:,0], true_data_codes)
 
 
 def match_codes():
@@ -262,7 +289,7 @@ def match_codes():
 
     working_directory = './data/'
 
-    data_codes, data_descriptions = get_data_to_match('medium')
+    data_codes, data_descriptions = get_data_to_match('slim')
 
     official_codes, official_descriptions = get_official_data()
 
@@ -420,31 +447,6 @@ def parse_csv():
             pickle.dump(lading_descriptions, open('./data/data-descriptions-2016-' + str(current_page) + '.pkl', 'w'))
 
 
-def _find_max_columns(index_scores):
-    """index_scores is a sparse matrix of shape (ndocs, ncodes). this function finds the sum of each row and the index of the maximum"""
-    nrows = index_scores.shape[0]
-    rowsums = np.zeros(nrows)
-    maxcol_indices = np.zeros(nrows, dtype=int)
-    for i in range(nrows):
-        current_row = sparse.find(index_scores.getrow(i))
-        current_row_indices = current_row[1]
-        current_row_values = current_row[2]
-        nvals = current_row_values.shape[0]
-        rowsum = 0
-        maxval = None
-        maxcol = 0
-        for j in range(nvals):
-            rowsum += current_row_values[j]
-            if current_row_values[j] > maxval:
-                maxval = current_row_values[j]
-                maxcol = current_row_indices[j]
-
-        rowsums[i] = rowsum
-        maxcol_indices[i] = maxcol
-
-    return [rowsums, maxcol_indices]
-
-
 def validate_predictions():
     """Loads data generated by analyze_data and assesses accuracy of classification in different hierarchies of tariff codes"""
     working_directory = './data/'
@@ -474,6 +476,45 @@ def validate_predictions():
 
     errors.dump('./data/errors.pkl')
             
+
+
+def separate_data():
+    base_code_name = './data/data-codes-2016-'
+    base_desc_name = './data/data-descriptions-2016-'
+    for i in range(5,10):
+        progress_bar(i, 10)
+        code_filename = base_code_name + str(i) + '.pkl'
+        desc_filename = base_desc_name + str(i) + '.pkl'
+        data_codes = np.array(pickle.load(open(code_filename, 'r')))
+        ncodes = data_codes.shape[0]
+        data_codes_array = np.empty(ncodes, dtype=int)
+        powers_of_ten = np.power(10, range(10))
+        for j in xrange(ncodes):
+
+            code = data_codes[j]
+            if len(code) > 0:
+                # throw out those few codes that have 
+                try:
+                    nmissing_digits = 10 - len(code)
+                    code = int(code)*powers_of_ten[nmissing_digits]
+                except ValueError:
+                    code = 0
+                    continue
+            else:
+                code = -1
+            data_codes_array[j] = code
+
+        data_codes = data_codes_array
+        print data_codes[:5]
+
+        data_descriptions = [' '.join(words) for words in pickle.load(open(desc_filename, 'r'))]
+
+        kept_indices = data_codes != -1
+        data_descriptions = list(compress(data_descriptions, ~np.isnan(data_codes)))
+        data_codes = data_codes[kept_indices]
+    
+        pickle.dump(data_codes, open('./data/train/codes' + str(i) + '.pkl', 'w'))
+        pickle.dump(data_descriptions, open('./data/train/descriptions' + str(i) + '.pkl', 'w'))
 
 
 def analyze_data():
@@ -653,5 +694,6 @@ if __name__=='__main__':
     # dl_data_eda()
     # analyze_data()
     # parse_csv()
-    match_codes()
-    # match_combined_codes()
+    # match_codes()
+    # separate_data()
+    match_combined_codes()
