@@ -11,7 +11,7 @@ from util_fns import progress_bar
 class KNNClassifier:
 
     def __init__(self, **kwargs):
-        self._classifier = KNeighborsClassifier(n_jobs=4, **kwargs) # LSHForest(**kwargs)
+        self._classifier = KNeighborsClassifier(n_jobs=1, **kwargs) # LSHForest(**kwargs)
         self._official_labels = None
 
     def fit(self, official_embeddings, official_labels):
@@ -61,8 +61,8 @@ class KNNClassifier:
 class KNNCombinedClassifier:
 
     def __init__(self, **kwargs):
-        self._classifier1 = KNeighborsClassifier(n_jobs=4, **kwargs)
-        self._classifier2 = KNeighborsClassifier(n_jobs=4, **kwargs)
+        self._classifier1 = KNeighborsClassifier(n_jobs=1, **kwargs)
+        self._classifier2 = KNeighborsClassifier(n_jobs=1, **kwargs)
         self._nNN = self._classifier1.get_params()['n_neighbors']
         self._official_labels = None
         self._fit1 = False
